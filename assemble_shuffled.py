@@ -289,9 +289,6 @@ def gzip_all(src):
 def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
     verbose_logging(**locals())
 
-    if not op.exists(output):
-        os.makedirs(output)
-
     fastq_name = op.basename(fastq)
     sample = get_sample(fastq_name)
 
@@ -350,10 +347,15 @@ if __name__ == '__main__':
     p.add_argument('--threads', default=16, type=int, help="threads for spades to utilize")
     args = p.parse_args()
 
+    if not op.exists(args.output):
+        os.makedirs(args.output)
+
     LOG = "%s/%s.log" % (args.output, op.basename(__file__))
+
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                         filename=LOG,
                         level=logging.DEBUG,
                         filemode='wb')
+
     tf.tempdir = tf.gettempdir()
     main(args.fastq, args.output, args.kmernorm, args.complexity_filter, args.email, args.threads)
