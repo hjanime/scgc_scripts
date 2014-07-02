@@ -341,13 +341,11 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
         spades_input = kmerfq
 
         if complexity_filter:
-            # output is defined in function
-            compfilteredfq = lowcomp_filter(**{'paired':None, 'input':kmerfq,
-                                                'logfile':LOG, 'min_complexity':0.01})
-            spades_input = compfilteredfq
-            if op.getsize(spades_input) <= 0:
+            compfilteredfq = lowcomp_filter(kmerfq)
+            if op.getsize(compfilteredfq) <= 0:
                 logging.info("low complexity filtered has removed all of the reads")
                 sys.exit(1)
+            spades_input = compfilteredfq
 
         spades_dir = tmpdir + "/spades"
         spades_fasta = spades(**{'pe1-12':spades_input, 'threads':threads,
