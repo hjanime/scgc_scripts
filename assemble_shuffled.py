@@ -66,7 +66,13 @@ def fqreads(fq):
     return total
 
 
+def copyfiles(src, dst, **kwargs):
+    cmd = "rsync" + kwargs_to_flag_string(kwargs) + " %s/* %s" % (src, dst)
+    return runcmd(cmd)
+
+
 def copytree(src, dst, symlinks=False, ignore=None):
+    """copying to a cifs mount: copy2 will not work."""
     if not op.exists(dst):
         os.makedirs(dst)
         shutil.copystat(src, dst)
@@ -105,27 +111,24 @@ def runcmd(cmd, log=True):
     0
     """
     if isinstance(cmd, basestring):
-        if log: logging.info("Running command: %s", cmd)
+        if log: logging.debug("Running command: %s", cmd)
         returncode = call(cmd, shell=True)
         if not returncode == 0:
-            logging.error("Execution failed. Exiting.")
+            logging.error("Execution failed.")
             raise CalledProcessError
 
     else:
         assert isinstance(cmd, list)
-        if log: logging.info("Running commands: %s", cmd)
-
-        # pool = Pool(n)
-        # for i, returncode in enumerate(pool.imap(partial(sp.call, shell=True), cmd)):
-        #     if returncode != 0:
-        #         raise CalledProcessError
+        if log: logging.debug("Running commands: %s", cmd)
 
         # this will be bad if the list of commands is really long
         processes = [Popen(c, shell=True) for c in cmd]
         for p in processes:
             p.wait()
             returncode = p.returncode
-            if returncode != 0: raise CalledProcessError
+            if returncode != 0:
+                logging.error("Execution failed.")
+                raise CalledProcessError
 
     return returncode
 
@@ -282,6 +285,7 @@ def tar(src):
 def gzip_all(src):
     cmds = []
     for f in os.listdir(src):
+        if f.endswith("gz"): continue
         cmds.append("gzip -f %s" % op.join(src, f))
     runcmd(cmds)
 
@@ -322,19 +326,21 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
         sizefilteredfq = filter_fasta_by_size(renamed_hdrs, 2000)
         assembly_stats(sizefilteredfq)
 
-        if email:
-            send_email(to=email, subject=op.basename(__file__),
-                        message="finished processing %s; results were copied to %s" % (fastq, output))
-
     finally:
         # archive/gzip all of the spades output
         spades_dir = tar(spades_dir)
         # gzip all of the files in the temp dir
         gzip_all(tmpdir)
         # copy over the files
-        copytree(tmpdir, output)
+        copyfiles(tmpdir, output, r=None, v=None, h=None, u=None, progress=None)
         # delete the temp working directory
         shutil.rmtree(tmpdir)
+
+        if email:
+            send_email(to=email, subject=op.basename(__file__),
+                message="finished processing %s; results were copied to %s" % (fastq, output))
+
+        logging.info("Complete.")
 
 
 if __name__ == '__main__':
@@ -350,7 +356,7 @@ if __name__ == '__main__':
     if not op.exists(args.output):
         os.makedirs(args.output)
 
-    LOG = "%s/%s.log" % (args.output, op.basename(__file__))
+    LOG = "%s/%s.log" % (args.output, op.basename(__file__).rstrip(".py"))
 
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                         filename=LOG,
