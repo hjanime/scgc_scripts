@@ -156,13 +156,48 @@ def run_kmernorm(fastq, **kwargs):
     return outfile
 
 
-def lowcomp_filter(**kwargs):
-    out = kwargs['input'].rsplit(".", 1)[0] + ".compfilter.fastq"
-    kwargs['output'] = out
-    # need to check the dependencies of this script
-    cmd = "Rscript --vanilla /opt/scgc/rscript/fastq-low-complexity-filter.Rscript" \
-                + kwargs_to_flag_string(kwargs)
-    runcmd(cmd)
+def lowcomp_filter(fastq, bases='ACTG', threshold=0.01):
+    """
+    remove low complexity reads (have at least each of the bases specified
+    above threshold) and return filtered fastq path.
+    """
+
+    def _readfq(fq):
+        with nopen(fq) as fh:
+            fqclean = (x.strip("\r\n") for x in fh if x.strip())
+            while True:
+                r = [x for x in islice(fqclean, 8)]
+                if not r: raise StopIteration
+                assert all(r) and len(r) == 8
+                yield r[0], r[1], r[3], r[4], r[5], r[7]
+
+    out = fastq.rsplit(".fastq", 1)[0] + ".lowcomp_filter.%f.fastq" % threshold
+    read_count = 0
+    kept = 0.
+
+    with open(out, 'wb') as fo:
+        for name1, seq1, qual1, name2, seq2, qual2 in _readfq(fastq):
+            # read lengths can vary
+            seq1len = float(len(seq1))
+            seq2len = float(len(seq2))
+            read_count += 2
+
+            passed = True
+
+            for b in bases:
+                if b not in seq1 or b not in seq2 \
+                        or seq1.count(b) / seq1len <= threshold \
+                        or seq2.count(b) / seq2len <= threshold:
+                    passed = False
+
+            if passed:
+                kept += 2
+                fields = [name1, seq1, "+", qual1, name2, seq2, "+", qual2]
+                print >>fo, "\n".join(fields)
+
+    logging.info("low complexity filtering retained %d of %d (%0.3f)", \
+                    kept, read_count, kept / read_count * 100)
+
     return out
 
 
@@ -287,7 +322,8 @@ def gzip_all(src):
     for f in os.listdir(src):
         if f.endswith("gz"): continue
         cmds.append("gzip -f %s" % op.join(src, f))
-    runcmd(cmds)
+    if len(cmds) > 0:
+        runcmd(cmds)
 
 
 def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
@@ -326,9 +362,10 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
         sizefilteredfq = filter_fasta_by_size(renamed_hdrs, 2000)
         assembly_stats(sizefilteredfq)
 
-    finally:
         # archive/gzip all of the spades output
         spades_dir = tar(spades_dir)
+
+    finally:
         # gzip all of the files in the temp dir
         gzip_all(tmpdir)
         # copy over the files

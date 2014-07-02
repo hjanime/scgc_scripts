@@ -6,7 +6,6 @@ A place to stick random scripts.
 ###Requires
 
 + kmernorm
-+ fasta-low-complexity-filter.Rscript
 + mutt
 + spades
 + pip install toolshed
