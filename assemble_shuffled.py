@@ -380,7 +380,7 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
 
 if __name__ == '__main__':
     p = ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsHelpFormatter)
-    p.add_argument('fastq', help="interweaved PacBio reads")
+    p.add_argument('fastq', help="interweaved, paired-end reads in fastq format")
     p.add_argument('output', help="location to store output files")
     p.add_argument('--kmernorm', action='store_true', help="run kmer normalization prior to spades")
     p.add_argument('--complexity-filter', action='store_true', help="filter out low complexity reads before running spades")

@@ -19,7 +19,7 @@ assemble interweaved, paired-end reads; the result of
 shuffleSequences_fastq.pl.
 
 positional arguments:
-  fastq                interweaved PacBio reads
+  fastq                interweaved, paired-end reads in fastq format
   output               location to store output files
 
 optional arguments:
