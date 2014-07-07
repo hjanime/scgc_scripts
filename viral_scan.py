@@ -651,12 +651,14 @@ if __name__=='__main__':
             help="path to viral databases (default: %(default)s)")
     args = p.parse_args()
 
-    if not op.exists(args.output):
+    if args.output == ".":
+        args.output = op.abspath(os.curdir)
+    elif not op.exists(args.output):
         os.makedirs(args.output)
 
     # TODO parameterize log level
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                        filename="%s/%s.log" % (args.output, op.basename(__file__)),
+                        filename="%s/%s.log" % (args.output, op.basename(__file__).rstrip(".py")),
                         level=logging.DEBUG,
                         filemode='wb')
 
