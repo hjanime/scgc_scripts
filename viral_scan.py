@@ -558,7 +558,7 @@ def gzip_all(src, ignore=['.gz']):
         runcmd(cmds)
 
 
-def main(fasta, output_dir, bacterial_query, display_config, email, viral_db,
+def main(fasta, output_dir, bacterial_query, email, viral_db,
             keep_tmp=False, threads=20, evalue=0.001, outfmt=5):
 
     verbose_logging(**locals())
@@ -671,6 +671,5 @@ if __name__=='__main__':
     if doctest.testmod(optionflags=doctest.ELLIPSIS |\
                                    doctest.NORMALIZE_WHITESPACE).failed == 0:
         tf.tempdir = tf.gettempdir()
-        main(args.fasta, args.output, args.query,
-                args.display_config, args.email, args.viral_db, args.keep_tmp,
-                args.threads)
+        main(args.fasta, args.output, args.query, args.email, args.viral_db,
+                args.keep_tmp, args.threads)
