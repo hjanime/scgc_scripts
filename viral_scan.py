@@ -298,7 +298,7 @@ def gc_content(fasta, output):
     """Calculate GC content and skew, write to file, and return output file
     name.
     """
-    output = fasta.rsplit(".". 1)[0] + ".gc_content.tsv"
+    output = fasta.rsplit(".", 1)[0] + ".gc_content.tsv"
     header = ["SEQUENCE_NAME", "POSITION", "SKEW", "CONTENT"]
 
     with open(output, 'wb') as fout:
