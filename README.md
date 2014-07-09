@@ -3,8 +3,7 @@ A place to stick random scripts.
 
 ##assemble_shuffled.py
 
-###Requires
-
+Requires:
 + kmernorm
 + mutt
 + spades
@@ -29,4 +28,24 @@ optional arguments:
                        (default: False)
   --email EMAIL        send completion alert (default: )
   --threads THREADS    threads for spades to utilize (default: 16)
+```
+
+##cov_by_chrom.py
+
+Requires:
++ bedtools
+
+```
+usage: cov_by_chrom.py [-h] [--no-split] bam
+
+avg. per chrom coverage for a bam file. defaults to using:
+
+bedtools genomecov -d -split -ibam <bam>
+
+positional arguments:
+  bam         coordinate sorted bam file
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --no-split  do not split reads based on CIGAR
 ```
