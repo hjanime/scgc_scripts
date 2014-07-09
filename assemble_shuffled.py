@@ -8,11 +8,11 @@ import logging
 import os
 import os.path as op
 import shutil
+import subprocess as sp
 import sys
 import tempfile as tf
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from itertools import groupby, islice
-from subprocess import call, CalledProcessError, Popen
 from toolshed import nopen
 
 
@@ -103,7 +103,7 @@ def runcmd(cmd, log=True):
     """
     >>> import sys
     >>> import logging
-    >>> from subprocess import call, CalledProcessError, Popen
+    >>> import subprocess as sp
     >>> logging.basicConfig(stream=sys.stdout)
     >>> runcmd("date > /dev/null", False)
     0
@@ -112,25 +112,21 @@ def runcmd(cmd, log=True):
     """
     if isinstance(cmd, basestring):
         if log: logging.debug("Running command: %s", cmd)
-        returncode = call(cmd, shell=True)
-        if not returncode == 0:
-            logging.error("Execution failed.")
-            raise CalledProcessError
+        # will raise sp.CalledProcessError on retcode != 0
+        sp.check_call(cmd, shell=True)
 
     else:
         assert isinstance(cmd, list)
         if log: logging.debug("Running commands: %s", cmd)
 
         # this will be bad if the list of commands is really long
-        processes = [Popen(c, shell=True) for c in cmd]
-        for p in processes:
+        processes = [sp.Popen(c, shell=True) for c in cmd]
+        for i, p in enumerate(processes):
             p.wait()
-            returncode = p.returncode
-            if returncode != 0:
-                logging.error("Execution failed.")
-                raise CalledProcessError
+            if p.returncode != 0:
+                raise sp.CalledProcessError(p.returncode, cmd[i])
 
-    return returncode
+    return 0
 
 
 def kwargs_to_flag_string(kwargs, ignore=[]):
