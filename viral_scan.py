@@ -562,7 +562,7 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
 
     try:
         tmpdir = tf.mkdtemp("_tmp", "%s_" % sample, tf.tempdir)
-        rename the fa headers while writing to temp working dir
+        # rename the fa headers while writing to temp working dir
         tmpfasta = preprocess_fasta(fasta, tmpdir)
 
         blastp_xml = op.join(tmpdir, "%s.blastp.xml" % sample)
