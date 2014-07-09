@@ -22,13 +22,13 @@ import os.path as op
 import parmap
 import shutil
 import stat
+import subprocess as sp
 import sys
 import tempfile as tf
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from collections import Counter
 from Bio.Blast import NCBIXML
 from itertools import groupby
-from subprocess import call, CalledProcessError, Popen
 from toolshed import nopen, reader
 
 
@@ -54,11 +54,6 @@ def find_files(path, pattern):
                 for filename in fnmatch.filter(files, p):
                     found_files.append(op.join(root, filename))
     return found_files
-
-
-def copyfiles(src, dst, **kwargs):
-    cmd = "rsync" + kwargs_to_flag_string(kwargs) + " %s/* %s" % (src, dst)
-    return runcmd(cmd)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):
@@ -111,37 +106,26 @@ def runcmd(cmd, log=True):
     """
     >>> import sys
     >>> import logging
-    >>> from subprocess import call, CalledProcessError, Popen
+    >>> import subprocess as sp
     >>> logging.basicConfig(stream=sys.stdout)
     >>> runcmd("date > /dev/null", False)
-    0
     >>> runcmd(["date > /dev/null", "date > /dev/null"], False)
-    0
     """
     if isinstance(cmd, basestring):
-        if log: logging.info("Running command: %s", cmd)
-        returncode = call(cmd, shell=True)
-        if not returncode == 0:
-            logging.error("Execution failed. Exiting.")
-            raise CalledProcessError
+        if log: logging.debug("Running command: %s", cmd)
+        # will raise sp.CalledProcessError on retcode != 0
+        sp.check_call(cmd, shell=True)
 
     else:
         assert isinstance(cmd, list)
-        if log: logging.info("Running commands: %s", cmd)
-
-        # pool = Pool(n)
-        # for i, returncode in enumerate(pool.imap(partial(sp.call, shell=True), cmd)):
-        #     if returncode != 0:
-        #         raise CalledProcessError
+        if log: logging.debug("Running commands: %s", cmd)
 
         # this will be bad if the list of commands is really long
-        processes = [Popen(c, shell=True) for c in cmd]
-        for p in processes:
+        processes = [sp.Popen(c, shell=True) for c in cmd]
+        for i, p in enumerate(processes):
             p.wait()
-            returncode = p.returncode
-            if returncode != 0: raise CalledProcessError
-
-    return returncode
+            if p.returncode != 0:
+                raise sp.CalledProcessError(p.returncode, cmd[i])
 
 
 def prodigal(fasta, sample, outdir):
@@ -158,7 +142,7 @@ def prodigal(fasta, sample, outdir):
     genbank = op.join(outdir, sample + ".gbk")
     score = op.join(outdir, sample + ".scores")
     cmd = "prodigal -a {proteins} -d {genes} -i {fasta} -o {genbank} -p meta -s {score}".format(**locals())
-    returncode = runcmd(cmd)
+    runcmd(cmd)
     return proteins, genes, genbank, score
 
 
@@ -294,7 +278,7 @@ def gc_skew_and_content(seq, window_size=500):
         yield mid, skew, content
 
 
-def gc_content(fasta, output):
+def gc_content(fasta):
     """Calculate GC content and skew, write to file, and return output file
     name.
     """
@@ -311,23 +295,26 @@ def gc_content(fasta, output):
     return output
 
 
-def tetramerPCA(**kwargs):
+def tetramerPCA(fasta, **kwargs):
+    output_dir = op.dirname(fasta) + "/tetramerPCA"
+    kwargs['input'] = fasta
+    kwargs['output_dir'] = output_dir
     cmd = "Rscript --vanilla /opt/scgc/rscript/pipeline-tetramerPCA.Rscript" + \
                 kwargs_to_flag_string(kwargs, dash="--")
-    return runcmd(cmd)
+    runcmd(cmd)
 
 
 def blastp(**kwargs):
     assert kwargs.has_key('out')
     cmd = "parallel-blastp" + kwargs_to_flag_string(kwargs)
-    return runcmd(cmd)
+    runcmd(cmd)
 
 
 def makeblastdb(**kwargs):
     # TODO: make a generic command and remove all these other ones
     # runcmd seems like the ideal place, but i also like it uncoupled
     cmd = "makeblastdb" + kwargs_to_flag_string(kwargs)
-    return runcmd(cmd)
+    runcmd(cmd)
 
 
 def batch_blastx(blast_db, viral_db, tmpdir, evalue=0.001, threads=20, outfmt=5):
@@ -350,7 +337,7 @@ def batch_blastx(blast_db, viral_db, tmpdir, evalue=0.001, threads=20, outfmt=5)
 def blastx(**kwargs):
     # TODO rewrite parallel-blast
     cmd = "parallel-blastx" + kwargs_to_flag_string(kwargs)
-    return runcmd(cmd)
+    runcmd(cmd)
 
 
 def construct_cigar(query_seq, subj_seq, query_len, query_from, query_to):
@@ -532,6 +519,28 @@ def samtools_mpileup(bam):
     return out
 
 
+def gzip_all(src, ignore=['.gz']):
+    if not '.gz' in ignore: ignore.append('.gz')
+    cmds = []
+
+    for f in os.listdir(src):
+        f = op.join(src, f)
+        if op.isdir(f):
+            gzip_all(f, ignore=ignore)
+            continue
+
+        append = True
+        for extension in ignore:
+            if f.endswith(extension):
+                append = False
+
+        if append:
+            cmds.append("gzip -f %s" % f)
+
+    if len(cmds) > 0:
+        runcmd(cmds)
+
+
 def send_email(to="scgc@bigelow.org", subject="", message="", attachment=None):
     if isinstance(message, list):
         message = " ".join(message)
@@ -541,21 +550,6 @@ def send_email(to="scgc@bigelow.org", subject="", message="", attachment=None):
         muttstub = muttstub + " -a \"" + attachment + "\""
     cmd = muttstub + " -s \"" + subject + "\" -- " + to
     return runcmd(cmd)
-
-
-def gzip_all(src, ignore=['.gz']):
-    cmds = []
-    for f in os.listdir(src):
-        append = True
-        for extension in ignore:
-            if f.endswith(extension):
-                append = False
-
-        if append:
-            cmds.append("gzip -f %s" % op.join(src, f))
-
-    if len(cmds) > 0:
-        runcmd(cmds)
 
 
 def main(fasta, output_dir, bacterial_query, email, viral_db,
@@ -568,7 +562,7 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
 
     try:
         tmpdir = tf.mkdtemp("_tmp", "%s_" % sample, tf.tempdir)
-        # rename the fa headers while writing to temp working dir
+        rename the fa headers while writing to temp working dir
         tmpfasta = preprocess_fasta(fasta, tmpdir)
 
         blastp_xml = op.join(tmpdir, "%s.blastp.xml" % sample)
@@ -588,14 +582,13 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         trna_output = trnascan(tmpfasta, o=trna_output, B=None)
 
         # gc content and skew
-        gc_content = gc_content(tmpfasta)
+        gc_output = gc_content(tmpfasta)
 
         # tetramerPCA
-        tetramerPCA(input=tmpfasta, window=1600, step=200,
-                        output_dir="%s/%s" % (tmpdir, 'tetramerPCA'))
+        tetramerPCA_output = tetramerPCA(tmpfasta, window=1600, step=200)
 
         # blastp
-        blastp(query=p_proteins, db="nr", out=blastp_xml, evalue=evalue,
+        blastp(query=p_proteins, db='nr', out=blastp_xml, evalue=evalue,
                 num_alignments=10, num_threads=threads, outfmt=outfmt)
 
         # blast_db
@@ -616,12 +609,12 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         bacterial_pileup = samtools_mpileup(bacterial_bam)
 
     finally:
-        # remove viral fastas; don't copy back from ram
+        # always remove viral fastas; don't copy back from ram
         shutil.rmtree(viral_db)
         # gzip all of the files in the temp dir
         gzip_all(tmpdir, ignore=['pdf', 'bam', 'bai'])
         # copy over the files
-        copyfiles(tmpdir, output, r=None, v=None, h=None, u=None, progress=None)
+        runcmd("cp -R -v {src}/* {dst}".format(src=tmpdir, dst=output_dir))
 
         if not keep_tmp:
             # delete the temp working directory
@@ -629,7 +622,7 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
 
         if email:
             send_email(to=email, subject=op.basename(__file__),
-                message="finished processing %s; results were copied to %s" % (fastq, output))
+                message="finished processing %s; results were copied to %s" % (fasta, output_dir))
 
         logging.info("Complete.")
 
