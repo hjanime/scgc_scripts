@@ -340,7 +340,7 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
             compfilteredfq = lowcomp_filter(kmerfq)
             if op.getsize(compfilteredfq) <= 0:
                 logging.info("low complexity filtered has removed all of the reads")
-                sys.exit(1)
+                sys.exit(0)
             spades_input = compfilteredfq
 
         spades_dir = tmpdir + "/spades"
@@ -353,8 +353,8 @@ def main(fastq, output, kmernorm, complexity_filter, email, threads=16):
         read_counts(tmpfastq, kmerfq, compfilteredfq)
         assembly_stats(renamed_hdrs)
 
-        sizefilteredfq = filter_fasta_by_size(renamed_hdrs, 2000)
-        assembly_stats(sizefilteredfq)
+        sizefilteredfa = filter_fasta_by_size(renamed_hdrs, 2000)
+        assembly_stats(sizefilteredfa)
 
         # archive/gzip all of the spades output
         spades_dir = tar(spades_dir)
