@@ -34,6 +34,7 @@ optional arguments:
 
 Requires:
 + bedtools
++ pip install toolshed
 
 ```
 usage: cov_by_chrom.py [-h] [--no-split] bam
