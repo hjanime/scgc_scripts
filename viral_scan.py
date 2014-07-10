@@ -571,7 +571,7 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         copytree(viral_db, "%s/%s" % (tmpdir, op.basename(viral_db)))
         viral_db = "%s/%s" % (tmpdir, op.basename(viral_db))
 
-        tmpquery = op.join(tmpdir, bacterial_query)
+        tmpquery = op.join(tmpdir, op.basename(bacterial_query))
         shutil.copyfile(bacterial_query, tmpquery)
 
         # prodigal
@@ -610,7 +610,8 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
 
     finally:
         # always remove viral fastas; don't copy back from ram
-        shutil.rmtree(viral_db)
+        if op.exists(viral_db):
+            shutil.rmtree(viral_db)
         # gzip all of the files in the temp dir
         gzip_all(tmpdir, ignore=['pdf', 'bam', 'bai'])
         # copy over the files
@@ -666,5 +667,5 @@ if __name__=='__main__':
     if doctest.testmod(optionflags=doctest.ELLIPSIS |\
                                    doctest.NORMALIZE_WHITESPACE).failed == 0:
         tf.tempdir = tf.gettempdir()
-        main(args.fasta, args.output, args.query, args.email, args.viral_db,
+        main(args.fasta, args.output, args.query, args.email, args.viral_db, \
                 args.keep_tmp, args.threads)
