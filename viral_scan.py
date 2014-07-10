@@ -568,8 +568,8 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         blastp_xml = op.join(tmpdir, "%s.blastp.xml" % sample)
         blast_db = op.join(tmpdir, "%s.blastdb" % sample)
 
-        copytree(viral_db, "%s/%s" % (tmpdir, op.basename(viral_db)))
-        viral_db = "%s/%s" % (tmpdir, op.basename(viral_db))
+        tmp_viral_db = op.join(tmpdir, op.basename(viral_db))
+        copytree(viral_db, tmp_viral_db)
 
         tmpquery = op.join(tmpdir, op.basename(bacterial_query))
         shutil.copyfile(bacterial_query, tmpquery)
@@ -595,7 +595,7 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         makeblastdb(**{'in':p_proteins, 'parse_seqids':None, 'dbtype':'prot', 'out':blast_db})
 
         # blastx; viral
-        viral_xmls, viral_queries = batch_blastx(blast_db, viral_db, tmpdir, evalue, threads, outfmt)
+        viral_xmls, viral_queries = batch_blastx(blast_db, tmp_viral_db, tmpdir, evalue, threads, outfmt)
         viral_bams = parmap.starmap(xml_to_bam, zip(viral_xmls, viral_queries), p_proteins, processes=12)
         viral_coverages = parmap.map(per_contig_coverage, viral_bams, p_proteins, processes=12)
         viral_pileups = parmap.map(samtools_mpileup, viral_bams, processes=12)
@@ -610,8 +610,8 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
 
     finally:
         # always remove viral fastas; don't copy back from ram
-        if op.exists(viral_db):
-            shutil.rmtree(viral_db)
+        if op.exists(tmp_viral_db):
+            shutil.rmtree(tmp_viral_db)
         # gzip all of the files in the temp dir
         gzip_all(tmpdir, ignore=['pdf', 'bam', 'bai'])
         # copy over the files
