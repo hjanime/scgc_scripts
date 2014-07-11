@@ -608,6 +608,11 @@ def main(fasta, output_dir, bacterial_query, email, viral_db,
         bacterial_coverage = per_contig_coverage(bacterial_bam, p_proteins)
         bacterial_pileup = samtools_mpileup(bacterial_bam)
 
+    except Exception as e:
+        print e.__doc__
+        print e.message
+        raise
+
     finally:
         # always remove viral fastas; don't copy back from ram
         if op.exists(tmp_viral_db):
