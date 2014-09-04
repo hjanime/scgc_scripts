@@ -343,6 +343,8 @@ def blastx(**kwargs):
 def construct_cigar(query_seq, subj_seq, query_len, query_from, query_to):
     """given two blast alignments, construct a valid CIGAR string for SAM
     http://samtools.github.io/hts-specs/SAMv1.pdf
+
+    should likely switch to: https://github.com/brentp/cigar
     """
     cigar_string = []
     last_op = None
@@ -398,26 +400,19 @@ def xml_to_bam(blast_xml, query_fasta, reference_fasta, threads=12):
     try:
         with open(sam_file, 'wb') as sam, nopen(blast_xml) as xml:
 
-            for record in NCBIXML.parse(nopen(xml)):
+            for record in NCBIXML.parse(xml):
                 for alignment in record.alignments:
                     for hsp in alignment.hsps:
                         # still a list for future reversing if anything ever
                         # maps to negative strand; assertion in function
                         cigar = construct_cigar(hsp.query, hsp.sbjct,
-                                        record.query_letters, hsp.query_start,
-                                        hsp.query_end)
+                            record.query_letters, hsp.query_start,
+                            hsp.query_end)
                         # 11 fields
-                        sam_fields = [record.query.split(" ", 1)[0],
-                                        0,
-                                        alignment.title.split(" ", 1)[0],
-                                        hsp.sbjct_start,
-                                        255,
-                                        "".join(cigar),
-                                        '*',
-                                        0,
-                                        0,
-                                        hsp.query.replace("-", ""),
-                                        '*']
+                        sam_fields = [record.query.split(" ", 1)[0], 0,
+                            alignment.title.split(" ", 1)[0], hsp.sbjct_start,
+                            255, "".join(cigar), '*', 0, 0,
+                            hsp.query.replace("-", ""), '*']
                         print >>sam, "\t".join(map(str, sam_fields))
 
         # index the reference fasta
@@ -431,8 +426,7 @@ def xml_to_bam(blast_xml, query_fasta, reference_fasta, threads=12):
         runcmd(cmd)
 
         # index the bam
-        cmd = "samtools index " + bam_file
-        runcmd(cmd)
+        runcmd("samtools index " + bam_file)
 
     finally:
         if op.exists(sam_file): os.remove(sam_file)
@@ -450,9 +444,8 @@ def contig_coverage_ratio(bam, min_cov=1):
     key is fasta name prior to first space.
     """
     coverage_ratios = {}
-    cmd = ("| samtools view -u {bam} "
-           "| bedtools genomecov -d -split -ibam - "
-           "| sort -k1,1 -k2,2n").format(bam=bam)
+    cmd = ("| samtools view -u {bam} | bedtools genomecov -d -split -ibam - "
+        "| bedtools sort -").format(bam=bam)
 
     for name, igroup in groupby(reader(cmd, header=['name', 'pos', 'count']), lambda x: x['name']):
         # not sure if necessary
@@ -461,8 +454,7 @@ def contig_coverage_ratio(bam, min_cov=1):
         total = 0.0
         for toks in igroup:
             total += 1
-            count = int(toks['count'])
-            if count >= min_cov:
+            if int(toks['count']) >= min_cov:
                 covered += 1
         coverage_ratios[toks['name']] = covered / total
 

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# submit job to new screen session. detach when complete.
+
+# usage:
+# echo "gzip *.fastq" | ssub jobname
+# ssub jobname < script.sh
+# ssub jobname script.sh
+
+if [[ "$1" == "-h" ]]; then
+    echo 'usage: echo "gzip *.fastq" | ssub jobname'
+    exit
+fi
+
+jobname=$1
+screenrc=$(mktemp /tmp/screenrc.XXXXXX)
+jobnum=${screenrc/*.}
+log=$jobname.$jobnum.log
+echo "Job Submitted: $jobnum"
+
+cat << EOF > $screenrc
+logfile $log
+EOF
+
+if [[ "$#" == 1 ]]; then
+    # stdin
+    screen -c $screenrc -d -m -L -S $jobnum bash -c "$(cat)"
+else
+    # script
+    screen -c $screenrc -d -m -L -S $jobnum bash $2
+fi
+
+rm $screenrc
+if [[ -d logs ]]; then
+    mv $log logs/$log
+fi

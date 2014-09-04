@@ -1,40 +1,42 @@
 #SCGC scripts
-A place to stick random scripts.
+A place to stick random scripts. Most will require `toolshed` which can be
+installed via `pip`.
 
-##assemble_shuffled.py
-
-Requires:
-+ kmernorm
-+ mutt
-+ spades
-+ pip install toolshed
-
+##bcl2fastq.py
 ```
-usage: assemble_shuffled.py [-h] [--kmernorm] [--complexity-filter]
-                            [--email EMAIL] [--threads THREADS]
-                            fastq output
+usage: bcl2fastq.py [-h] [-l {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}]
+                    [-r LOADING_THREADS] [-d DEMULTIPLEXING_THREADS]
+                    [-p PROCESSING_THREADS]
+                    [--barcode-mismatches BARCODE_MISMATCHES]
+                    runfolder ...
 
-assemble interweaved, paired-end reads; the result of
-shuffleSequences_fastq.pl.
+Runs bcl2fastq creating fastqs and concatenates fastqs across lanes. Intended
+to be used with NextSeq data and it does not do any cleanup! Original dumped
+fastqs will remain along with all of the bcl files.
 
 positional arguments:
-  fastq                interweaved, paired-end reads in fastq format
-  output               location to store output files
+  runfolder             path to run folder
+  args                  any additional bcl2fastq args and their values
 
 optional arguments:
-  -h, --help           show this help message and exit
-  --kmernorm           run kmer normalization prior to spades (default: False)
-  --complexity-filter  filter out low complexity reads before running spades
-                       (default: False)
-  --email EMAIL        send completion alert (default: )
-  --threads THREADS    threads for spades to utilize (default: 16)
+  -h, --help            show this help message and exit
+  -l {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}, --min-log-level {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}
+                        minimum log level (default: INFO)
+  -r LOADING_THREADS, --loading-threads LOADING_THREADS
+                        threads used for loading BCL data (default: 12)
+  -d DEMULTIPLEXING_THREADS, --demultiplexing-threads DEMULTIPLEXING_THREADS
+                        threads used for demultiplexing (default: 12)
+  -p PROCESSING_THREADS, --processing-threads PROCESSING_THREADS
+                        threads used for processing demultiplexed data
+                        (default: 12)
+  --barcode-mismatches BARCODE_MISMATCHES
+                        number of allowed mismatches per index (default: 0)
 ```
 
 ##cov_by_chrom.py
 
 Requires:
 + bedtools
-+ pip install toolshed
 
 ```
 usage: cov_by_chrom.py [-h] [--no-split] bam
@@ -49,4 +51,29 @@ positional arguments:
 optional arguments:
   -h, --help  show this help message and exit
   --no-split  do not split reads based on CIGAR
+```
+
+##fastx.py
+
+Requires: `pip install click parmap`
+
+```
+$ fastx.py --help
+Usage: fastx.py [OPTIONS] COMMAND [ARGS]...
+
+  Fasta and fastq tools.
+
+Options:
+  --version  Show the version and exit.
+  --help     Show this message and exit.
+
+Commands:
+  assembly-stats     basic fasta stats
+  complexity-filter  fastx complexity filter
+  count              count the reads
+  header             prepend or append to header
+  length-filter      filter fasta by seq length
+  merge-pe           merge R1 and R2 into interleaved fastq
+  sliding-gc         sliding GC and skew calculations
+  split-merged       unmerge interweaved fastq file
 ```
