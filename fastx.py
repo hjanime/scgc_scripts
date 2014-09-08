@@ -424,7 +424,7 @@ def merge_pe(r1, r2, name_trim):
         n2, s2, q2 = r2d[name]
         if not n1.endswith('/1'): n1 += '/1'
         if not n2.endswith('/2'): n2 += '/2'
-        print(n1, s1, '+', q1, n2, s2, '+', q2, sep="\n")
+        print('@' + n1, s1, '+', q1, '@' + n2, s2, '+', q2, sep="\n")
 
     print("Total: %d" % (len(r1names) + len(r2names)),
         "Remaining: %d" % remaining, sep=",", file=sys.stderr)
