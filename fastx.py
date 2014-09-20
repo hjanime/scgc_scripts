@@ -17,7 +17,7 @@ signal(SIGPIPE,SIG_DFL)
 
 
 @click.group()
-@click.version_option('0.3.0')
+@click.version_option('0.4.0')
 @click.pass_context
 def cli(obj):
     """Fasta and fastq tools."""
@@ -334,7 +334,7 @@ def sliding_gc(fasta, window_size):
     help='optional name used rather than <fastx>; useful when using stdin')
 def count_reads(fastx, sample):
     """
-    Prints <fastx> [tab] total number of reads. If multiple files are passed the
+    Prints <fastx>,<total number of reads>. If multiple files are passed the
     counts are summed.
     """
     fname = sample if sample else (",".join(os.path.basename(x) for x in fastx))
@@ -364,7 +364,7 @@ def count_reads(fastx, sample):
                 count = int(count)
                 assert count % 4 == 0, "%s appears incomplete" % current_file
                 total += count / 4
-    print("%s\t%d" % (fname, total))
+    print (fname, total, sep=",")
 
 
 @cli.command('split-merged', short_help='unmerge interweaved fastq file')
