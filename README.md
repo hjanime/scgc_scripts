@@ -2,26 +2,24 @@
 A place to stick random scripts. Most will require `toolshed` which can be
 installed via `pip`.
 
-##bcl2fastq.py
+##`bcl2fastq.py`
 ```
-usage: bcl2fastq.py [-h] [-l {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}]
-                    [-r LOADING_THREADS] [-d DEMULTIPLEXING_THREADS]
-                    [-p PROCESSING_THREADS]
+usage: bcl2fastq.py [-h] [-R RUNFOLDER_DIR] [-r LOADING_THREADS]
+                    [-d DEMULTIPLEXING_THREADS] [-p PROCESSING_THREADS]
                     [--barcode-mismatches BARCODE_MISMATCHES]
-                    runfolder ...
+                    ...
 
 Runs bcl2fastq creating fastqs and concatenates fastqs across lanes. Intended
 to be used with NextSeq data and it does not do any cleanup! Original dumped
 fastqs will remain along with all of the bcl files.
 
 positional arguments:
-  runfolder             path to run folder
   args                  any additional bcl2fastq args and their values
 
 optional arguments:
   -h, --help            show this help message and exit
-  -l {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}, --min-log-level {NONE,FATAL,ERROR,WARNING,INFO,DEBUG,TRACE}
-                        minimum log level (default: INFO)
+  -R RUNFOLDER_DIR, --runfolder-dir RUNFOLDER_DIR
+                        path to run folder (default: .)
   -r LOADING_THREADS, --loading-threads LOADING_THREADS
                         threads used for loading BCL data (default: 12)
   -d DEMULTIPLEXING_THREADS, --demultiplexing-threads DEMULTIPLEXING_THREADS
@@ -33,7 +31,7 @@ optional arguments:
                         number of allowed mismatches per index (default: 0)
 ```
 
-##cov_by_chrom.py
+##`cov_by_chrom.py`
 
 Requires:
 + bedtools
@@ -53,7 +51,24 @@ optional arguments:
   --no-split  do not split reads based on CIGAR
 ```
 
-##fastx.py
+##`fastedit.py`
+
+Facilitates manual editing of fasta headers. First, retrieve the headers:
+
+```
+python fastedit.py get input.fasta > headers.csv
+```
+
+Edit headers.csv. Column 2 will be the replacement header where column 1 matches
+in the fasta. If column 2 is blank, the record is written unchanged. Removing a
+row from the csv will remove the fasta entry matching that header. Once editing
+is complete, update the headers:
+
+```
+python fastedit.py put input.fasta headers.csv > renamed.fasta
+```
+
+##`fastx.py`
 
 Requires: `pip install click parmap`
 
