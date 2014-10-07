@@ -33,8 +33,7 @@ optional arguments:
 
 ##`cov_by_chrom.py`
 
-Requires:
-+ bedtools
+Requires: `bedtools`
 
 ```
 usage: cov_by_chrom.py [-h] [--no-split] bam
@@ -68,9 +67,11 @@ is complete, update the headers:
 python fastedit.py put input.fasta headers.csv > renamed.fasta
 ```
 
+Requires: `pip install click toolshed`
+
 ##`fastx.py`
 
-Requires: `pip install click parmap`
+Requires: `pip install click parmap toolshed`
 
 ```
 $ fastx.py --help
