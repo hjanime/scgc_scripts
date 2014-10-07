@@ -31,7 +31,7 @@ def process_samplesheet(samplesheet):
                 continue
             if start:
                 # bcl2fastq converts underscores to dashes
-                samples.append(toks[0].replace("_", "-"))
+                samples.append(toks[0].replace("_", "-").replace(".", "-"))
                 # location of fastq output
                 experiment = toks[8]
     finally:
@@ -91,8 +91,9 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
                 if not os.path.exists(path):
                     sys.exit("Can't find %s. Concatenation failed." % path)
                 cmd.append(path)
+
             # using shell to ease redirection
-            commands.append(" ".join(cmd))
+            commands.append(" ".join(cmd) + " > " + result_file)
 
     # execute concatenation 4 samples at a time
     print("Joining reads across lanes")
