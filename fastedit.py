@@ -52,21 +52,21 @@ def readfx(fastx):
 
 @cli.command('get', short_help='retrieve fasta headers')
 @click.argument('fasta', type=click.Path(exists=True))
-@click.option('-o', '--out', help='output file: default writes to STDOUT')
+@click.option('-o', '--out', help='output file: default to STDOUT')
 def get_headers(fasta, out):
     """Pull out the headers from <fasta> and write them to <out>."""
     total = 0
     with open(out, 'w') if out else sys.stdout as fh:
         for name, seq, qual in readfx(fasta):
             total += 1
-            print (name, file=fh)
-    print (total, "headers exported.", file=sys.stderr)
+            print(name, file=fh)
+    print(total, "headers exported.", file=sys.stderr)
 
 
 @cli.command('put', short_help='replace fasta headers')
 @click.argument('fasta', type=click.Path(exists=True))
 @click.argument('csv', type=click.Path(exists=True))
-@click.option('-o', '--out', help='default writes to STDOUT')
+@click.option('-o', '--out', help='output file: default to STDOUT')
 def put_headers(fasta, csv, out):
     """
     Replace <fasta> headers with column 2 of <csv> where column 1
@@ -98,7 +98,7 @@ def put_headers(fasta, csv, out):
                     newname = name
 
                 # print the record
-                print (">%s" % newname, file=fh)
+                print(">%s" % newname, file=fh)
                 for i in xrange(0, len(seq), 60):
                     print (seq[i:i + 60], file=fh)
 
@@ -106,8 +106,8 @@ def put_headers(fasta, csv, out):
                 # removed from the csv
                 ignored += 1
 
-    print ("Input fasta contained", total, "records", file=sys.stderr)
-    print ("You renamed", renamed, "and kept a total of", total - ignored,
+    print("Input fasta contained", total, "records", file=sys.stderr)
+    print("You renamed", renamed, "and kept a total of", total - ignored,
         file=sys.stderr)
 
 
