@@ -9,6 +9,7 @@ import parmap
 import sys
 from itertools import count, groupby, izip
 from multiprocessing import Pool
+from numpy import mean
 from signal import signal, SIGPIPE, SIG_DFL
 from toolshed import nopen
 
@@ -82,8 +83,8 @@ def print_fasta_record(name, seq, fh, wrap=60):
 @click.option('-o', '--out', help='when None write to STDOUT, else append to this file')
 def assembly_stats(fasta, out):
     """
-    From <fasta>, report total bases, number of contigs, min contig size, max
-    contig size, GC percent, and N50 to <out>.
+    Report total bases, max contig size, number of contigs,
+    GC percent, N50, and mean contig length to <out>.
     """
     total_contigs, contig_sizes, gc_total = stats_from_fasta(fasta)
 
@@ -96,7 +97,9 @@ def assembly_stats(fasta, out):
 
         if total_contigs == 1:
             nfifty = contig_sizes[0]
+            avg = contig_sizes[0]
         else:
+            avg = mean(contig_sizes)
             testsum = 0
             half = total_bases / 2.
             for size in contig_sizes:
@@ -111,16 +114,10 @@ def assembly_stats(fasta, out):
         maxcontigsize = 0
         gc_percent = 0
         nfifty = 0
+        avg = 0
 
     ofh = open(out, 'a') if out else sys.stdout
-
-    print("Stats for FASTA:   %s" % os.path.basename(fasta), file=ofh)
-    print("Total Bases:       %d" % total_bases, file=ofh)
-    print("Number of Contigs: %d" % total_contigs, file=ofh)
-    print("Min Contig Size:   %d" % mincontigsize, file=ofh)
-    print("Max Contig Size:   %d" % maxcontigsize, file=ofh)
-    print("GC Percent:        %0.2f%%" % gc_percent, file=ofh)
-    print("N50:               %d" % nfifty, file=ofh)
+    print(total_bases, maxcontigsize, total_contigs, gc_percent, nfifty, avg, sep=",", file=ofh)
 
 
 @cli.command('length-filter', short_help="filter fasta by seq length")
@@ -329,42 +326,44 @@ def sliding_gc(fasta, window_size):
 
 
 @cli.command('count', short_help='count the reads')
-@click.argument('fastx', nargs=-1)
-@click.option('--sample', default=None,
-    help='optional name used rather than <fastx>; useful when using stdin')
-def count_reads(fastx, sample):
+@click.argument('fastx')
+def read_count(fastx):
     """
-    Prints <fastx>,<total number of reads>. If multiple files are passed the
-    counts are summed.
+    count the number of reads present in fastq or fasta.
     """
-    fname = sample if sample else (",".join(os.path.basename(x) for x in fastx))
-    total = 0
 
-    # no one would want to pass multiple file types, right?
+    total = 0
     fq = True
-    for name, seq, qual in readfx(fastx[0]):
+    for name, seq, qual in readfx(fastx):
         if not qual:
             fq = False
         break
 
-    for f in fastx:
-        cat = "gunzip -c" if f.endswith("gz") else "cat"
-        current_file = os.path.basename(f)
-        if not total:
-            print("Counting reads in %s" % current_file, file=sys.stderr)
-        else:
-            print("Summing counts with %s" % current_file, file=sys.stderr)
-        if not fq:
-            cmd = '%s %s | grep -c "^>"' % (cat, f)
-            for count in nopen("|" + cmd):
-                total += int(count)
-        else:
-            cmd = "%s %s | wc -l" % (cat, f)
-            for count in nopen("|" + cmd):
-                count = int(count)
-                assert count % 4 == 0, "%s appears incomplete" % current_file
-                total += count / 4
-    print (fname, total, sep=",")
+    if fastx.endswith("gz"):
+        count_file = fastx.rsplit(".gz", 1)[0] + ".count"
+        cat = "gunzip -c"
+    else:
+        count_file = fastx + ".count"
+        cat = "cat"
+
+    if os.path.exists(count_file):
+        cmd = "cat %s" % count_file
+    elif not fq:
+        cmd = '%s %s | grep -c "^>"' % (cat, fastx)
+    else:
+        cmd = "%s %s | wc -l" % (cat, fastx)
+
+    for count in nopen("|" + cmd):
+        total = int(count)
+        if fq and not cmd.endswith('.count'):
+            assert total % 4 == 0
+            total = total / 4
+
+    if not os.path.exists(count_file):
+        with open(count_file, 'w') as fh:
+            print (total, file=fh)
+
+    print(total)
 
 
 @cli.command('split-merged', short_help='unmerge interweaved fastq file')
