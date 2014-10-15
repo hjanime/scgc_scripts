@@ -22,18 +22,20 @@ def process_samplesheet(samplesheet):
 
     try:
         start = False
+        experiment_idx = 0
         # strip whitespace and rewrite file in place
         for toks in fileinput.input(samplesheet, mode='rU', backup='.bak', inplace=True):
             toks = toks.rstrip("\r\n").split(',')
             print(",".join([t.strip() for t in toks]))
             if toks[0] == "Sample_ID":
                 start = True
+                experiment_idx = toks.index("Sample_Project")
                 continue
             if start:
                 # bcl2fastq converts underscores to dashes
                 samples.append(toks[0].replace("_", "-").replace(".", "-"))
                 # location of fastq output
-                experiment = toks[8]
+                experiment = toks[experiment_idx]
     finally:
         fileinput.close()
 
@@ -63,10 +65,12 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
     args.insert(0, 'bcl2fastq')
 
     # run bcl2fastq
+    bcl2fastq_log = os.path.join(runfolder_dir, "bcl2fastq.log")
     cmd = " ".join(map(str, args))
     print("Converting .bcl to .fastq using:")
     print("$> ", cmd)
-    sp.check_call(cmd, shell=True)
+    with open(bcl2fastq_log, 'w') as fh:
+        sp.check_call(cmd, stdout=fh, stderr=fh, shell=True)
     print(".bcl conversion was successful")
 
     # location of fastqs from bcl2fastq
