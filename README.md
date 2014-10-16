@@ -6,7 +6,7 @@ installed via `pip`.
 ```
 usage: bcl2fastq.py [-h] [-R RUNFOLDER_DIR] [-r LOADING_THREADS]
                     [-d DEMULTIPLEXING_THREADS] [-p PROCESSING_THREADS]
-                    [--barcode-mismatches BARCODE_MISMATCHES]
+                    [--barcode-mismatches BARCODE_MISMATCHES] [--wait]
                     ...
 
 Runs bcl2fastq creating fastqs and concatenates fastqs across lanes. Intended
@@ -29,6 +29,8 @@ optional arguments:
                         (default: 12)
   --barcode-mismatches BARCODE_MISMATCHES
                         number of allowed mismatches per index (default: 0)
+  --wait                wait for run to complete; checks completion status in
+                        RunCompletionStatus.xml (default: True)
 ```
 
 ##`cov_by_chrom.py`
