@@ -42,8 +42,37 @@ def process_samplesheet(samplesheet):
     return samples, experiment
 
 
+def wait_for_completion(runfolder_dir, wait=True):
+    import time
+    from xml.etree import ElementTree
+
+    run_document = os.path.join(runfolder_dir, "RunCompletionStatus.xml")
+
+    if wait:
+        sleep_time = 1
+        notify = True
+        while not os.path.exists(run_document):
+            if notify:
+                print("Waiting on run completion.")
+                notify = False
+            time.sleep(sleep_time)
+            if sleep_time < 60:
+                sleep_time += 1
+        print("Run complete.")
+
+    try:
+        doc = ElementTree.parse(run_document)
+        run_status = doc.find("CompletionStatus").text
+    except IOError:
+        sys.exit("Could not find %s. Exiting." % run_document)
+    except AttributeError:
+        sys.exit("Error parsing %s. Exiting." % run_document)
+
+    return True if run_status == "CompletedAsPlanned" else False
+
+
 def main(runfolder_dir, loading_threads, demultiplexing_threads,
-            processing_threads, barcode_mismatches, args):
+            processing_threads, barcode_mismatches, wait, args):
 
     # verify working directory
     samplesheet = os.path.join(runfolder_dir, "SampleSheet.csv")
@@ -54,6 +83,11 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
     samples, experiment = process_samplesheet(samplesheet)
     if len(samples) == 0:
         sys.exit("No samples were found in the SampleSheet. Check formatting.")
+
+    # execute and wait on run completion
+    completion_success = wait_for_completion(runfolder_dir, wait)
+    if not completion_success:
+        sys.exit("Run did not complete as planned. Exiting.")
 
     # set args for call to bcl2fastq
     if not '-w' in args or '--writing-threads' in args:
@@ -70,6 +104,10 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
     print("Converting .bcl to .fastq using:")
     print("$> ", cmd)
     with open(bcl2fastq_log, 'w') as fh:
+        # bcl2fastq version info...
+        sp.check_call("bcl2fastq --version 2>&1 | tail -2 | head -1",
+            stdout=fh, stderr=fh, shell=True)
+        # the actual call
         sp.check_call(cmd, stdout=fh, stderr=fh, shell=True)
     print(".bcl conversion was successful")
 
@@ -111,14 +149,16 @@ if __name__ == '__main__':
     p = ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsHelpFormatter)
     p.add_argument('-R', '--runfolder-dir', default=".", help="path to run folder")
     p.add_argument('-r', '--loading-threads', default=12, type=int,
-                    help="threads used for loading BCL data")
+        help="threads used for loading BCL data")
     p.add_argument('-d', '--demultiplexing-threads', default=12, type=int,
-                    help="threads used for demultiplexing")
+        help="threads used for demultiplexing")
     p.add_argument('-p', '--processing-threads', default=12, type=int,
-                    help="threads used for processing demultiplexed data")
+        help="threads used for processing demultiplexed data")
     p.add_argument('--barcode-mismatches', default=0, type=int,
-                    help="number of allowed mismatches per index")
+        help="number of allowed mismatches per index")
+    p.add_argument('--wait', action='store_false',
+        help="wait for run to complete; checks completion status in RunCompletionStatus.xml")
     p.add_argument('args', nargs=REMAINDER,
-                    help="any additional bcl2fastq args and their values")
+        help="any additional bcl2fastq args and their values")
     args = vars(p.parse_args())
     main(**args)
