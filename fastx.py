@@ -370,26 +370,26 @@ def read_count(fastx):
 @click.argument('fastq')
 @click.argument('r1', type=str)
 @click.argument('r2', type=str)
-def split_merged(fastq, r1, r2):
+@click.option('threads', type=int, default=8)
+def split_merged(fastq, r1, r2, threads):
     """
-    Unmerges <fastq> into gzipped <r1> and <r2>.
+    Unmerges <fastq> into gzipped (uses pigz!) <r1> and <r2>.
     """
-    import gzip
+    import subprocess
 
     assert r1 != r2
-    r1 = r1 + '.gz' if not r1.endswith('.gz') else r1
-    r2 = r2 + '.gz' if not r2.endswith('.gz') else r2
+    r1 = r1[:-3] if r1.endswith('.gz') else r1
+    r2 = r2[:-3] if r2.endswith('.gz') else r2
 
-    with nopen(fastq) as fh, gzip.open(r1, 'wb') as ofa, gzip.open(r2, 'wb') as ofb:
-
-        while True:
-            a = [fh.readline() for i in xrange(4)]
-            b = [fh.readline() for i in xrange(4)]
-            if not all(a):
-                assert not all(b)
-                break
-            [ofa.write(i) for i in a]
-            [ofb.write(i) for i in b]
+    print("Splitting reads (1/2).")
+    cat = "gunzip -c %s" % fastq if fastq.endswith('gz') else "cat %s" % fastq
+    cmd = """%s | awk 'BEGIN{o=1}{r++;if(o%%2==0){r2++; print $0 > "%s"}\
+        else{r1++;print $0 > "%s"}if(r%%4==0){o++}}END{print "R1 records: "r1/4\
+        "\\nR2 records: "r2/4}'""" % (cat, r2, r1)
+    subprocess.check_call(cmd, shell=True)
+    print("Gzipping reads (2/2).")
+    cmd = "pigz -fp%d %s %s" % (threads, r1, r2)
+    subprocess.check_call(cmd, shell=True)
 
 
 @cli.command('merge-pe', short_help='merge R1 and R2 into interleaved fastq')
