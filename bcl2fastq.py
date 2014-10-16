@@ -26,39 +26,43 @@ def process_samplesheet(samplesheet):
         # strip whitespace and rewrite file in place
         for toks in fileinput.input(samplesheet, mode='rU', backup='.bak', inplace=True):
             toks = toks.rstrip("\r\n").split(',')
-            print(",".join([t.strip() for t in toks]))
-            if toks[0] == "Sample_ID":
-                start = True
-                experiment_idx = toks.index("Sample_Project")
-                continue
-            if start:
+
+            if not start:
+                if toks[0] == "Sample_ID":
+                    start = True
+                    experiment_idx = toks.index("Sample_Project")
+                print(",".join([t.strip() for t in toks]))
+
+            # remove blank lines at end of table
+            elif toks[0]:
                 # bcl2fastq converts underscores to dashes
                 samples.append(toks[0].replace("_", "-").replace(".", "-"))
                 # location of fastq output
-                experiment = toks[experiment_idx]
+                if not experiment:
+                    experiment = toks[experiment_idx]
+                print(",".join([t.strip() for t in toks]))
+
     finally:
         fileinput.close()
 
     return samples, experiment
 
 
-def wait_for_completion(runfolder_dir, wait=True):
+def wait_for_completion(runfolder_dir):
     import time
     from xml.etree import ElementTree
 
     run_document = os.path.join(runfolder_dir, "RunCompletionStatus.xml")
-
-    if wait:
-        sleep_time = 1
-        notify = True
-        while not os.path.exists(run_document):
-            if notify:
-                print("Waiting on run completion.")
-                notify = False
-            time.sleep(sleep_time)
-            if sleep_time < 60:
-                sleep_time += 1
-        print("Run complete.")
+    sleep_time = 1
+    notify = True
+    while not os.path.exists(run_document):
+        if notify:
+            print("Waiting on run completion.")
+            notify = False
+        time.sleep(sleep_time)
+        if sleep_time < 60:
+            sleep_time += 1
+    print("Run complete.")
 
     try:
         doc = ElementTree.parse(run_document)
@@ -85,9 +89,10 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
         sys.exit("No samples were found in the SampleSheet. Check formatting.")
 
     # execute and wait on run completion
-    completion_success = wait_for_completion(runfolder_dir, wait)
-    if not completion_success:
-        sys.exit("Run did not complete as planned. Exiting.")
+    if wait:
+        completion_success = wait_for_completion(runfolder_dir)
+        if not completion_success:
+            sys.exit("Run did not complete as planned. Exiting.")
 
     # set args for call to bcl2fastq
     if not '-w' in args or '--writing-threads' in args:
@@ -156,7 +161,7 @@ if __name__ == '__main__':
         help="threads used for processing demultiplexed data")
     p.add_argument('--barcode-mismatches', default=0, type=int,
         help="number of allowed mismatches per index")
-    p.add_argument('--wait', action='store_false',
+    p.add_argument('--wait', action='store_true',
         help="wait for run to complete; checks completion status in RunCompletionStatus.xml")
     p.add_argument('args', nargs=REMAINDER,
         help="any additional bcl2fastq args and their values")
