@@ -10,19 +10,25 @@ from __future__ import print_function
 
 import fileinput
 import os
+import string
 import subprocess as sp
 import sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, REMAINDER
 from itertools import izip_longest
 
 
-def process_samplesheet(samplesheet):
+_complement = string.maketrans("ATCG", "TAGC")
+complement = lambda seq: seq.translate(_complement)
+
+
+def process_samplesheet(samplesheet, reverse_complement):
     samples = []
     experiment = ""
 
     try:
         start = False
         experiment_idx = 0
+        index2_idx = None
         # strip whitespace and rewrite file in place
         for toks in fileinput.input(samplesheet, mode='rU', backup='.bak', inplace=True):
             toks = toks.rstrip("\r\n").split(',')
@@ -31,6 +37,12 @@ def process_samplesheet(samplesheet):
                 if toks[0] == "Sample_ID":
                     start = True
                     experiment_idx = toks.index("Sample_Project")
+                    if reverse_complement:
+                        if "index2" in toks:
+                            index2_idx = toks.index("index2")
+                        elif "Index2" in toks:
+                            index2_idx = toks.index("Index2")
+
                 print(",".join([t.strip() for t in toks]))
 
             # remove blank lines at end of table
@@ -40,10 +52,18 @@ def process_samplesheet(samplesheet):
                 # location of fastq output
                 if not experiment:
                     experiment = toks[experiment_idx]
+                # only adjust on known index
+                if reverse_complement and index2_idx:
+                    toks[index2_idx] = complement(toks[index2_idx])[::-1]
                 print(",".join([t.strip() for t in toks]))
 
     finally:
         fileinput.close()
+
+    if reverse_complement and not index2_idx:
+        sys.exit("Unable to reverse complement index2 of the SampleSheet. " +
+            "Avoid using 'reverse-complement' or check your SampleSheet.csv " +
+            "for 'index2' header.")
 
     return samples, experiment
 
@@ -76,7 +96,7 @@ def wait_for_completion(runfolder_dir):
 
 
 def main(runfolder_dir, loading_threads, demultiplexing_threads,
-            processing_threads, barcode_mismatches, wait, args):
+    processing_threads, barcode_mismatches, wait, reverse_complement, args):
 
     # verify working directory
     samplesheet = os.path.join(runfolder_dir, "SampleSheet.csv")
@@ -84,7 +104,7 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
         sys.exit("%s was not found. Exiting." % samplesheet)
 
     # get sample names and experiment name from SampleSheet
-    samples, experiment = process_samplesheet(samplesheet)
+    samples, experiment = process_samplesheet(samplesheet, reverse_complement)
     if len(samples) == 0:
         sys.exit("No samples were found in the SampleSheet. Check formatting.")
 
@@ -107,7 +127,7 @@ def main(runfolder_dir, loading_threads, demultiplexing_threads,
     bcl2fastq_log = os.path.join(runfolder_dir, "bcl2fastq.log")
     cmd = " ".join(map(str, args))
     print("Converting .bcl to .fastq using:")
-    print("$> ", cmd)
+    print("$>", cmd)
     with open(bcl2fastq_log, 'w') as fh:
         # bcl2fastq version info...
         sp.check_call("bcl2fastq --version 2>&1 | tail -2 | head -1",
@@ -161,6 +181,8 @@ if __name__ == '__main__':
         help="threads used for processing demultiplexed data")
     p.add_argument('--barcode-mismatches', default=0, type=int,
         help="number of allowed mismatches per index")
+    p.add_argument('--reverse-complement', action='store_true',
+        help="reverse complement Index 2 of the Sample Sheet")
     p.add_argument('--wait', action='store_true',
         help="wait for run to complete; checks completion status in RunCompletionStatus.xml")
     p.add_argument('args', nargs=REMAINDER,
