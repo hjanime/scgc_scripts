@@ -326,7 +326,7 @@ def sliding_gc(fasta, window_size):
 
 
 @cli.command('count', short_help='count the reads')
-@click.argument('fastx')
+@click.argument('fastx', type=click.Path(exists=True))
 def read_count(fastx):
     """
     count the number of reads present in fastq or fasta.
