@@ -40,9 +40,9 @@ def check_input(input_file):
     return bedgraph
 
 
-def main(input_file, output_dir, sample, reference):
+def main(input_file, output, sample, reference):
     bedgraph = check_input(input_file)
-    plot_file = os.path.join(output_dir, "%s_%s.png" % (sample, reference))
+    plot_file = output if output else input_file.rsplit(".", 1)[0] + "_coverage.png"
 
     print("Reading count data", file=sys.stderr)
     pos = []
@@ -63,15 +63,13 @@ def main(input_file, output_dir, sample, reference):
 if __name__ == '__main__':
     p = ArgumentParser(description=__doc__, formatter_class=ADHF)
     p.add_argument('input', help='bam or bedgraph file')
-    p.add_argument('output', help='location to write the plot file')
     p.add_argument('sample', help='name of the input sample')
     p.add_argument('reference', help='reference name to which sample is aligned')
+    p.add_argument('-o', '--output', help="optional output file name (.png)")
 
     args = p.parse_args()
 
     if not os.path.exists(args.input):
         sys.exit("The input file does not exist. Exiting.")
-    if not os.path.exists(args.output):
-        os.makedirs(args.output)
 
     main(args.input, args.output, args.sample, args.reference)
