@@ -633,10 +633,10 @@ if __name__=='__main__':
     p.add_argument('query', metavar="QUERY", help="bacterial query fasta")
 
     p.add_argument("--email", default='',
-            help="send an email to this address when complete (default: <skip>)")
+            help="send an email to this address when complete (default: None)")
     p.add_argument("--keep-tmp", action="store_true",
-            help="preserve temp files on exist (default: %(default)s)")
-    p.add_argument("--threads", default=90, type=int,
+            help="preserve temp files on exit (default: %(default)s)")
+    p.add_argument("--threads", default=20, type=int,
             help="max number of threads to use (default: %(default)s)")
     p.add_argument("--viral-db", default="/mnt/scgc/viral_dbs",
             help="path to viral databases (default: %(default)s)")
