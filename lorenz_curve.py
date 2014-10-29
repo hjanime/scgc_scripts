@@ -28,8 +28,7 @@ def main(bam, output):
 
     coverages = []
     print("Calculating coverages", file=sys.stderr)
-    for toks in reader("|bedtools genomecov -5 -d -ibam %s | sort -k3,3n" % bam,
-        header=['name', 'start', 'coverage']):
+    for toks in reader("|bedtools genomecov -5 -d -ibam %s" % bam, header=['name', 'start', 'coverage']):
         coverages.append(int(toks['coverage']))
 
     coverages_r = IntVector(coverages)
